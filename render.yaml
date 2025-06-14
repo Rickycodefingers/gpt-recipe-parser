@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: recipe-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn gpt_recipe_api:app
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false 
