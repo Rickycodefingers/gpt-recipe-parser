@@ -30,14 +30,25 @@ app = Flask(__name__)
 
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
+# Configure CORS
 CORS(app, resources={
     r"/*": {
-        "origins": os.environ.get("CORS_ORIGINS", "*").split(","),
+        "origins": ["https://gpt-recipe-parser.vercel.app", "http://localhost:3000"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "supports_credentials": True,
+        "expose_headers": ["Content-Type", "Authorization"]
     }
 })
+
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'https://gpt-recipe-parser.vercel.app')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 def validate_recipe_data(data):
     """Validate the structure of the recipe data."""
@@ -91,6 +102,7 @@ def analyze_recipe():
 
         # Convert image to text using GPT-4o
         try:
+            logger.info("Sending request to OpenAI API...")
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -110,9 +122,14 @@ def analyze_recipe():
                 max_tokens=1000,
                 timeout=60
             )
+            logger.info("Received response from OpenAI API")
            
             # Parse and validate the response
             try:
+                if not response or not response.choices or not response.choices[0].message:
+                    logger.error("Invalid response structure from OpenAI API")
+                    return jsonify({'error': 'Invalid response from API'}), 500
+
                 logger.info(f"Raw GPT response: {response.choices[0].message.content}")
                 recipe_data = json.loads(response.choices[0].message.content)
                 is_valid, error_message = validate_recipe_data(recipe_data)
