@@ -96,20 +96,28 @@ function App() {
             <h2 style={{ color: '#333', marginBottom: '20px' }}>{recipe.title}</h2>
             
             <h3 style={{ color: '#444', marginBottom: '15px' }}>Ingredients</h3>
-            <ul style={{ 
-              listStyleType: 'none', 
-              padding: 0,
+            <table style={{ 
+              width: '100%',
+              borderCollapse: 'collapse',
               marginBottom: '30px'
             }}>
-              {recipe.ingredients && recipe.ingredients.map((ingredient, idx) => (
-                <li key={idx} style={{ 
-                  padding: '8px 0',
-                  borderBottom: '1px solid #eee'
-                }}>
-                  {ingredient.amount} {ingredient.item} {ingredient.notes ? `(${ingredient.notes})` : ''}
-                </li>
-              ))}
-            </ul>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #ddd' }}>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>QTY</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Ingredient</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipe.ingredients && recipe.ingredients.map((ingredient, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '12px' }}>{ingredient.amount}</td>
+                    <td style={{ padding: '12px' }}>{ingredient.item}</td>
+                    <td style={{ padding: '12px' }}>{ingredient.notes || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
             <h3 style={{ color: '#444', marginBottom: '15px' }}>Instructions</h3>
             {recipe.instructions && recipe.instructions.length > 0 && (

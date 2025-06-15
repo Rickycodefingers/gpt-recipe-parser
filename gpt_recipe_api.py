@@ -113,13 +113,13 @@ def analyze_recipe():
         try:
             logger.info("Sending request to OpenAI API...")
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 response_format={"type": "json_object"},
                 messages=[
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text, explanation, or markdown formatting. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas. Do not include any text before or after the JSON object. Each instruction should be a complete sentence. Each ingredient should have an item, amount, and notes field. The notes field can be empty if there are no additional notes. Format numbers and measurements consistently (e.g., '1 cup', '2 tablespoons', '1/2 teaspoon')."},
+                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. Follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Do not include any text before or after the JSON object. Each instruction should be a complete sentence. Each ingredient should have an item, amount, and notes field. The notes field can be empty if there are no additional notes. Format numbers and measurements consistently (e.g., '1 cup', '2 tablespoons', '1/2 teaspoon')."},
                             {
                                 "type": "image_url",
                                 "image_url": {
