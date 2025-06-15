@@ -7,22 +7,6 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(0);
-  const [language, setLanguage] = useState('en');
-
-  const languages = {
-    'en': 'English',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'pt': 'Portuguese',
-    'nl': 'Dutch',
-    'pl': 'Polish',
-    'ru': 'Russian',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'zh': 'Chinese'
-  };
 
   const handleImageChange = (e) => {
     setImage(e.target.files[0]);
@@ -51,8 +35,7 @@ function App() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            image: base64data,
-            language: language
+            image: base64data
           }),
         });
 
@@ -61,11 +44,11 @@ function App() {
           throw new Error(data.error || 'Failed to extract recipe');
         }
         setRecipe(data);
+        setLoading(false);
       };
     } catch (err) {
       console.error('Error:', err);
       setError(err.message || 'An error occurred while processing the image');
-    } finally {
       setLoading(false);
     }
   };
@@ -78,20 +61,6 @@ function App() {
       <header className="App-header">
         <h1>Recipe Image to Table</h1>
         <div style={{ marginBottom: '20px' }}>
-          <select 
-            value={language} 
-            onChange={(e) => setLanguage(e.target.value)}
-            style={{
-              padding: '8px',
-              marginRight: '10px',
-              borderRadius: '4px',
-              border: '1px solid #ccc'
-            }}
-          >
-            {Object.entries(languages).map(([code, name]) => (
-              <option key={code} value={code}>{name}</option>
-            ))}
-          </select>
           <input 
             type="file" 
             accept="image/*" 
@@ -103,11 +72,11 @@ function App() {
             disabled={!image || loading}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#4CAF50',
+              backgroundColor: loading ? '#ccc' : '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
             {loading ? 'Processing...' : 'Upload & Extract'}
@@ -124,15 +93,8 @@ function App() {
             borderRadius: '8px',
             color: 'black'
           }}>
-            <h2 style={{ color: '#333', marginBottom: '20px' }}>{recipe.name}</h2>
+            <h2 style={{ color: '#333', marginBottom: '20px' }}>{recipe.title}</h2>
             
-            <div style={{ marginBottom: '20px' }}>
-              <p><strong>Servings:</strong> {recipe.servings}</p>
-              <p><strong>Prep Time:</strong> {recipe.prep_time} minutes</p>
-              <p><strong>Cook Time:</strong> {recipe.cook_time} minutes</p>
-              <p><strong>Total Time:</strong> {recipe.total_time} minutes</p>
-            </div>
-
             <h3 style={{ color: '#444', marginBottom: '15px' }}>Ingredients</h3>
             <ul style={{ 
               listStyleType: 'none', 
@@ -144,7 +106,7 @@ function App() {
                   padding: '8px 0',
                   borderBottom: '1px solid #eee'
                 }}>
-                  {ingredient}
+                  {ingredient.amount} {ingredient.item} {ingredient.notes ? `(${ingredient.notes})` : ''}
                 </li>
               ))}
             </ul>
@@ -184,36 +146,6 @@ function App() {
                   >
                     Next
                   </button>
-                </div>
-              </div>
-            )}
-
-            {recipe.notes && recipe.notes.length > 0 && (
-              <div style={{ marginTop: '30px' }}>
-                <h3 style={{ color: '#444', marginBottom: '15px' }}>Notes</h3>
-                <ul style={{ 
-                  listStyleType: 'disc',
-                  paddingLeft: '20px'
-                }}>
-                  {recipe.notes.map((note, idx) => (
-                    <li key={idx} style={{ marginBottom: '8px' }}>{note}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {recipe.nutrition && (
-              <div style={{ marginTop: '30px' }}>
-                <h3 style={{ color: '#444', marginBottom: '15px' }}>Nutritional Information</h3>
-                <div style={{ 
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '10px'
-                }}>
-                  <div><strong>Calories:</strong> {recipe.nutrition.calories}</div>
-                  <div><strong>Protein:</strong> {recipe.nutrition.protein}g</div>
-                  <div><strong>Carbs:</strong> {recipe.nutrition.carbs}g</div>
-                  <div><strong>Fat:</strong> {recipe.nutrition.fat}g</div>
                 </div>
               </div>
             )}
