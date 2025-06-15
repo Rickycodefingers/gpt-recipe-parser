@@ -26,6 +26,11 @@ logger = logging.getLogger(__name__)
 if os.environ.get("ENVIRONMENT") != "production":
     from dotenv import load_dotenv
     load_dotenv()
+
+# At the top of the file, after loading environment variables
+if not os.getenv('OPENAI_API_KEY'):
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
+
 app = Flask(__name__)
 
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -81,6 +86,10 @@ def handle_error(error):
         logger.error(f"Unexpected error: {str(error)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'healthy', 'environment': os.environ.get('ENVIRONMENT', 'development')})
+
 @app.route('/api/recipe', methods=['POST', 'OPTIONS'])
 def analyze_recipe():
     if request.method == 'OPTIONS':
@@ -109,7 +118,7 @@ def analyze_recipe():
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text, explanation, or markdown formatting. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas. Do not include any text before or after the JSON object."},
+                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text, explanation, or markdown formatting. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas. Do not include any text before or after the JSON object. Each instruction should be a complete sentence. Each ingredient should have an item, amount, and notes field. The notes field can be empty if there are no additional notes. Format numbers and measurements consistently (e.g., '1 cup', '2 tablespoons', '1/2 teaspoon')."},
                             {
                                 "type": "image_url",
                                 "image_url": {
@@ -126,9 +135,21 @@ def analyze_recipe():
            
             # Parse and validate the response
             try:
-                if not response or not response.choices or not response.choices[0].message:
-                    logger.error("Invalid response structure from OpenAI API")
-                    return jsonify({'error': 'Invalid response from API'}), 500
+                if not response:
+                    logger.error("Empty response from OpenAI API")
+                    return jsonify({'error': 'Empty response from API'}), 500
+                
+                if not hasattr(response, 'choices') or not response.choices:
+                    logger.error("No choices in API response")
+                    return jsonify({'error': 'Invalid response format from API'}), 500
+                
+                if not hasattr(response.choices[0], 'message'):
+                    logger.error("No message in API response choices")
+                    return jsonify({'error': 'Invalid response format from API'}), 500
+                
+                if not response.choices[0].message.content:
+                    logger.error("Empty content in API response message")
+                    return jsonify({'error': 'Empty content in API response'}), 500
 
                 logger.info(f"Raw GPT response: {response.choices[0].message.content}")
                 recipe_data = json.loads(response.choices[0].message.content)
