@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from openai import OpenAI
+from openai import OpenAI, APIError, RateLimitError, AuthenticationError, APIStatusError, APITimeoutError
 from PIL import Image
 import io
 import base64
@@ -38,6 +38,37 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
+
+def validate_recipe_data(data):
+    """Validate the structure of the recipe data."""
+    required_fields = ['title', 'ingredients', 'instructions']
+    if not all(field in data for field in required_fields):
+        return False, "Missing required fields in recipe data"
+    
+    if not isinstance(data['ingredients'], list):
+        return False, "Ingredients must be a list"
+    
+    if not isinstance(data['instructions'], list):
+        return False, "Instructions must be a list"
+    
+    return True, None
+
+def handle_error(error):
+    if isinstance(error, APIError):
+        logger.error(f"API Error: {error.code} - {error.message}")
+        return jsonify({'error': f"API Error: {error.code} - {error.message}"}), error.code
+    elif isinstance(error, RateLimitError):
+        logger.error(f"Rate Limit Error: {error.message}")
+        return jsonify({'error': f"Rate Limit Error: {error.message}"}), 429
+    elif isinstance(error, AuthenticationError):
+        logger.error(f"Authentication Error: {error.message}")
+        return jsonify({'error': f"Authentication Error: {error.message}"}), 401
+    elif isinstance(error, APIStatusError):
+        logger.error(f"API Status Error: {error.code} - {error.message}")
+        return jsonify({'error': f"API Status Error: {error.code} - {error.message}"}), error.code
+    else:
+        logger.error(f"Unexpected error: {str(error)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 @app.route('/api/recipe', methods=['POST', 'OPTIONS'])
 def analyze_recipe():
@@ -76,12 +107,36 @@ def analyze_recipe():
                         ]
                     }
                 ],
-                max_tokens=10000
+                max_tokens=1000,
+                timeout=60
             )
-            recipe_data = json.loads(response.choices[0].message.content)
+           
+            # Parse and validate the response
+            try:
+                recipe_data = json.loads(response.choices[0].message.content)
+                is_valid, error_message = validate_recipe_data(recipe_data)
+                if not is_valid:
+                    logger.error(f"Invalid recipe data structure: {error_message}")
+                    return jsonify({'error': f'Invalid recipe data: {error_message}'}), 500
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse GPT response as JSON: {str(e)}")
+                return jsonify({'error': 'Failed to parse recipe data'}), 500
+
+        except AuthenticationError as e:
+            logger.error(f"OpenAI API authentication error: {str(e)}")
+            return jsonify({'error': 'API authentication failed. Please check API key.'}), 500
+        except RateLimitError as e:
+            logger.error(f"OpenAI API rate limit exceeded: {str(e)}")
+            return jsonify({'error': 'API rate limit exceeded. Please try again later.'}), 429
+        except APITimeoutError as e:
+            logger.error(f"OpenAI API request timed out: {str(e)}")
+            return jsonify({'error': 'Request timed out. Please try again.'}), 504
+        except APIError as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            return jsonify({'error': 'Error communicating with OpenAI API'}), 500
         except Exception as e:
-            logger.error(f"Error in GPT-4o API call: {str(e)}")
-            return jsonify({'error': 'Error analyzing recipe with GPT-4o'}), 500
+            logger.error(f"Unexpected error in GPT API call: {str(e)}")
+            return jsonify({'error': 'An unexpected error occurred while processing the recipe'}), 500
 
         return jsonify(recipe_data)
 
