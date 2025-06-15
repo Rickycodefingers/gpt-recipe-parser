@@ -11,7 +11,7 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Initialize Sentry
 sentry_sdk.init(
@@ -29,16 +29,11 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 app = Flask(__name__)
 
-# Configure CORS for production
 CORS(app, resources={
-    r"/*": {  # Allow all routes
-        "origins": [
-            "http://localhost:3000",  # Local development
-            "https://gpt-recipe-parser.vercel.app",  # Vercel frontend
-            "https://recipe-ui.vercel.app"  # Alternative Vercel domain
-        ],
+    r"/*": {
+        "origins": os.environ.get("CORS_ORIGINS", "*").split(","),
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
+        "allowed_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
 })
