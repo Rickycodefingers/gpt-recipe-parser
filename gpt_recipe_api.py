@@ -11,6 +11,8 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
 # Initialize Sentry
 sentry_sdk.init(
     dsn=os.getenv('SENTRY_DSN'),  # Add this to your environment variables
@@ -78,7 +80,7 @@ def analyze_recipe():
                         ]
                     }
                 ],
-                max_tokens=1000
+                max_tokens=10000
             )
             recipe_data = json.loads(response.choices[0].message.content)
         except Exception as e:
@@ -92,6 +94,6 @@ def analyze_recipe():
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 10000))
     logger.info(f"Starting server on port {port}")
     app.run(host='0.0.0.0', port=port, debug=True) 
