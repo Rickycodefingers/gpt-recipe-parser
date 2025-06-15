@@ -2,12 +2,10 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-import openai
+from openai import OpenAI
 from PIL import Image
 import io
 import base64
-import re
-import pandas as pd
 import json
 
 # Load environment variables
@@ -17,7 +15,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Configure OpenAI
-openai.api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 def extract_recipe_from_text(text):
     try:
@@ -46,15 +44,6 @@ def extract_recipe_from_text(text):
         return recipe
         
     except json.JSONDecodeError:
-        # If direct JSON parsing fails, try to extract JSON from the text
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
-        if json_match:
-            try:
-                recipe = json.loads(json_match.group())
-                return recipe
-            except json.JSONDecodeError:
-                pass
-                
         raise ValueError("Could not parse recipe text as JSON")
 
 @app.route('/api/recipe', methods=['POST'])
@@ -72,7 +61,7 @@ def process_image():
         img_str = base64.b64encode(buffered.getvalue()).decode()
         
         # Call OpenAI API
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4-vision-preview",
             messages=[
                 {

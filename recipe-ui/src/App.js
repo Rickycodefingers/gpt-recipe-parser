@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 
 function App() {
@@ -8,22 +8,6 @@ function App() {
   const [error, setError] = useState('');
   const [step, setStep] = useState(0);
   const [useMetric, setUseMetric] = useState(true);
-  const [savedRecipes, setSavedRecipes] = useState([]);
-  const [showSaveForm, setShowSaveForm] = useState(false);
-  const [recipeDetails, setRecipeDetails] = useState({
-    title: '',
-    author: '',
-    source: '',
-    notes: ''
-  });
-
-  // Load saved recipes from localStorage on component mount
-  useEffect(() => {
-    const saved = localStorage.getItem('savedRecipes');
-    if (saved) {
-      setSavedRecipes(JSON.parse(saved));
-    }
-  }, []);
 
   const handleImageChange = (e) => {
     setImage(e.target.files[0]);
@@ -48,33 +32,11 @@ function App() {
       if (!response.ok) throw new Error('Failed to extract recipe.');
       const data = await response.json();
       setRecipe(data);
-      // Pre-fill the title in the save form
-      setRecipeDetails(prev => ({ ...prev, title: data.title }));
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSaveRecipe = () => {
-    const newRecipe = {
-      ...recipe,
-      ...recipeDetails,
-      id: Date.now(), // Simple unique ID
-      savedAt: new Date().toISOString()
-    };
-    
-    const updatedRecipes = [...savedRecipes, newRecipe];
-    setSavedRecipes(updatedRecipes);
-    localStorage.setItem('savedRecipes', JSON.stringify(updatedRecipes));
-    setShowSaveForm(false);
-    setRecipeDetails({ title: '', author: '', source: '', notes: '' });
-  };
-
-  const handleViewRecipe = (savedRecipe) => {
-    setRecipe(savedRecipe);
-    setStep(0);
   };
 
   const nextStep = () => setStep((s) => s + 1);
@@ -107,8 +69,7 @@ function App() {
           </button>
         </div>
         {error && <p style={{ color: 'red' }}>{error}</p>}
-        
-        {recipe && !showSaveForm && (
+        {recipe && (
           <div style={{ 
             marginTop: '32px', 
             textAlign: 'left', 
@@ -118,22 +79,7 @@ function App() {
             borderRadius: '8px',
             color: 'black'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', margin: 0 }}>{recipe.title}</h2>
-              <button 
-                onClick={() => setShowSaveForm(true)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#2196F3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Save Recipe
-              </button>
-            </div>
+            <h2 style={{ color: '#333', marginBottom: '20px' }}>{recipe.title}</h2>
             
             <h3 style={{ color: '#444', marginBottom: '15px' }}>
               Ingredients
@@ -261,118 +207,6 @@ function App() {
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {showSaveForm && (
-          <div style={{
-            marginTop: '32px',
-            textAlign: 'left',
-            maxWidth: '800px',
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            color: 'black'
-          }}>
-            <h2 style={{ color: '#333', marginBottom: '20px' }}>Save Recipe</h2>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Recipe Name:</label>
-              <input
-                type="text"
-                value={recipeDetails.title}
-                onChange={(e) => setRecipeDetails(prev => ({ ...prev, title: e.target.value }))}
-                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Author:</label>
-              <input
-                type="text"
-                value={recipeDetails.author}
-                onChange={(e) => setRecipeDetails(prev => ({ ...prev, author: e.target.value }))}
-                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Source:</label>
-              <input
-                type="text"
-                value={recipeDetails.source}
-                onChange={(e) => setRecipeDetails(prev => ({ ...prev, source: e.target.value }))}
-                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-              />
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Notes:</label>
-              <textarea
-                value={recipeDetails.notes}
-                onChange={(e) => setRecipeDetails(prev => ({ ...prev, notes: e.target.value }))}
-                style={{ width: '100%', padding: '8px', marginBottom: '10px', minHeight: '100px' }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={handleSaveRecipe}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowSaveForm(false)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {savedRecipes.length > 0 && !recipe && (
-          <div style={{
-            marginTop: '32px',
-            textAlign: 'left',
-            maxWidth: '800px',
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            color: 'black'
-          }}>
-            <h2 style={{ color: '#333', marginBottom: '20px' }}>Saved Recipes</h2>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {savedRecipes.map((savedRecipe) => (
-                <div
-                  key={savedRecipe.id}
-                  style={{
-                    padding: '15px',
-                    backgroundColor: '#f5f5f5',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => handleViewRecipe(savedRecipe)}
-                >
-                  <h3 style={{ margin: '0 0 5px 0' }}>{savedRecipe.title}</h3>
-                  {savedRecipe.author && <p style={{ margin: '0 0 5px 0' }}>By: {savedRecipe.author}</p>}
-                  {savedRecipe.source && <p style={{ margin: '0 0 5px 0' }}>Source: {savedRecipe.source}</p>}
-                  <p style={{ margin: 0, fontSize: '0.8em', color: '#666' }}>
-                    Saved on: {new Date(savedRecipe.savedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </header>
