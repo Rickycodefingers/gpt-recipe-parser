@@ -10,6 +10,8 @@ import json
 import logging
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
+import langdetect
+from langdetect import detect
 
 # Initialize Sentry
 sentry_sdk.init(
@@ -50,75 +52,103 @@ def after_request(response):
 # Configure OpenAI
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-def extract_recipe_from_text(text):
+# Supported languages and their codes
+SUPPORTED_LANGUAGES = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'nl': 'Dutch',
+    'pl': 'Polish',
+    'ru': 'Russian',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'zh': 'Chinese'
+}
+
+def detect_language(text):
     try:
-        logger.debug(f"Attempting to parse recipe text: {text[:100]}...")  # Log first 100 chars
-        # Try to parse the text as JSON directly
-        recipe = json.loads(text)
-        
-        # Validate the structure
-        required_fields = ['title', 'ingredients', 'instructions']
-        if not all(field in recipe for field in required_fields):
-            logger.error(f"Missing required fields. Found: {list(recipe.keys())}")
-            raise ValueError("Missing required fields in recipe")
-            
-        # Validate ingredients structure
-        if not isinstance(recipe['ingredients'], list):
-            logger.error(f"Ingredients is not a list: {type(recipe['ingredients'])}")
-            raise ValueError("Ingredients must be a list")
-            
-        for ingredient in recipe['ingredients']:
-            if not isinstance(ingredient, dict):
-                logger.error(f"Ingredient is not a dict: {type(ingredient)}")
-                raise ValueError("Each ingredient must be a dictionary")
-            if 'item' not in ingredient:
-                logger.error(f"Ingredient missing 'item' field: {ingredient}")
-                raise ValueError("Each ingredient must have an 'item' field")
-                
-        # Validate instructions structure
-        if not isinstance(recipe['instructions'], list):
-            logger.error(f"Instructions is not a list: {type(recipe['instructions'])}")
-            raise ValueError("Instructions must be a list")
-            
-        logger.info(f"Successfully parsed recipe: {recipe['title']}")
-        return recipe
-        
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {str(e)}")
-        raise ValueError("Could not parse recipe text as JSON")
+        lang = detect(text)
+        return lang if lang in SUPPORTED_LANGUAGES else 'en'
+    except:
+        return 'en'
+
+def get_recipe_prompt(image_text, language='en'):
+    language_name = SUPPORTED_LANGUAGES.get(language, 'English')
+    
+    return f"""You are a professional chef and recipe analyzer. Analyze this recipe text and provide a detailed breakdown in {language_name}. 
+    The text might be in any language, but provide the response in {language_name}.
+    
+    Recipe Text:
+    {image_text}
+    
+    Please provide the following in {language_name}:
+    1. Recipe Name
+    2. Servings
+    3. Prep Time
+    4. Cook Time
+    5. Total Time
+    6. Ingredients (with measurements)
+    7. Instructions (step by step)
+    8. Notes/Tips (if any)
+    9. Nutritional Information (if available)
+    
+    Format the response as a JSON object with these exact keys:
+    {{
+        "name": "Recipe Name",
+        "servings": "Number of servings",
+        "prep_time": "Prep time in minutes",
+        "cook_time": "Cook time in minutes",
+        "total_time": "Total time in minutes",
+        "ingredients": ["ingredient 1", "ingredient 2", ...],
+        "instructions": ["step 1", "step 2", ...],
+        "notes": ["note 1", "note 2", ...],
+        "nutrition": {{
+            "calories": "number",
+            "protein": "number",
+            "carbs": "number",
+            "fat": "number"
+        }}
+    }}
+    
+    If any information is not available, use null for that field. Ensure all text is in {language_name}."""
 
 @app.route('/api/recipe', methods=['POST'])
-def process_image():
-    logger.info("Received recipe request")
-    if 'image' not in request.files:
-        logger.error("No image provided in request")
-        return jsonify({'error': 'No image provided'}), 400
-    
+def analyze_recipe():
     try:
-        image_file = request.files['image']
-        logger.debug(f"Received image: {image_file.filename}")
-        image = Image.open(image_file)
-        
-        # Convert image to base64
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        logger.debug("Image converted to base64")
-        
-        # Call OpenAI API
-        logger.info("Calling OpenAI API")
+        # Get the image data from the request
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({'error': 'No image data provided'}), 400
+
+        # Get language preference (default to detected language)
+        language = data.get('language', 'en')
+        if language not in SUPPORTED_LANGUAGES:
+            language = 'en'
+
+        # Decode the base64 image
+        try:
+            image_data = base64.b64decode(data['image'].split(',')[1])
+            image = Image.open(io.BytesIO(image_data))
+        except Exception as e:
+            logger.error(f"Error processing image: {str(e)}")
+            return jsonify({'error': 'Invalid image data'}), 400
+
+        # Convert image to text using GPT-4 Vision
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4-vision-preview",
                 messages=[
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text or explanation. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas."},
+                            {"type": "text", "text": "Extract all text from this recipe image. Include all ingredients, measurements, instructions, and any other relevant information. Preserve the original formatting and language."},
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": f"data:image/png;base64,{img_str}"
+                                    "url": f"data:image/jpeg;base64,{base64.b64encode(image_data).decode('utf-8')}"
                                 }
                             }
                         ]
@@ -126,30 +156,36 @@ def process_image():
                 ],
                 max_tokens=1000
             )
-            
-            # Parse the response
-            recipe_text = response.choices[0].message.content
-            logger.debug(f"Raw OpenAI response: {recipe_text}")
-            
-            # Try to clean the response if it's not valid JSON
-            try:
-                # Remove any markdown code block markers
-                recipe_text = recipe_text.replace('```json', '').replace('```', '').strip()
-                recipe = extract_recipe_from_text(recipe_text)
-                logger.info("Successfully processed recipe")
-                return jsonify(recipe)
-            except ValueError as e:
-                logger.error(f"Failed to parse recipe: {str(e)}")
-                logger.error(f"Raw text was: {recipe_text}")
-                return jsonify({'error': f"Could not parse recipe: {str(e)}"}), 400
-                
+            image_text = response.choices[0].message.content
         except Exception as e:
-            logger.error(f"OpenAI API error: {str(e)}", exc_info=True)
-            return jsonify({'error': f"OpenAI API error: {str(e)}"}), 500
-            
+            logger.error(f"Error in GPT-4 Vision API call: {str(e)}")
+            return jsonify({'error': 'Error processing image with GPT-4 Vision'}), 500
+
+        # If no language specified, detect it from the text
+        if language == 'auto':
+            language = detect_language(image_text)
+
+        # Get recipe analysis using GPT-4
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a professional chef and recipe analyzer."},
+                    {"role": "user", "content": get_recipe_prompt(image_text, language)}
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
+            recipe_data = json.loads(response.choices[0].message.content)
+        except Exception as e:
+            logger.error(f"Error in GPT-4 API call: {str(e)}")
+            return jsonify({'error': 'Error analyzing recipe with GPT-4'}), 500
+
+        return jsonify(recipe_data)
+
     except Exception as e:
-        logger.error(f"Error processing recipe: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
