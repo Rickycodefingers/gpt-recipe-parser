@@ -114,6 +114,7 @@ def analyze_recipe():
             logger.info("Sending request to OpenAI API...")
             response = client.chat.completions.create(
                 model="gpt-4o",
+                response_format={"type": "json_object"},
                 messages=[
                     {
                         "role": "user",
@@ -128,7 +129,7 @@ def analyze_recipe():
                         ]
                     }
                 ],
-                max_tokens=1000,
+                max_tokens=100000,
                 timeout=60
             )
             logger.info("Received response from OpenAI API")
