@@ -140,12 +140,12 @@ def analyze_recipe():
         # Convert image to text using GPT-4 Vision
         try:
             response = client.chat.completions.create(
-                model="gpt-4-vision-preview",
+                model="gpt-4o",
                 messages=[
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract all text from this recipe image. Include all ingredients, measurements, instructions, and any other relevant information. Preserve the original formatting and language."},
+                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text or explanation. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas."},
                             {
                                 "type": "image_url",
                                 "image_url": {
