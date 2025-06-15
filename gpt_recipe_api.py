@@ -97,7 +97,7 @@ def analyze_recipe():
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text or explanation. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas."},
+                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. The response must be ONLY the JSON object, with no additional text, explanation, or markdown formatting. The JSON must follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Make sure the JSON is properly formatted with double quotes and no trailing commas. Do not include any text before or after the JSON object."},
                             {
                                 "type": "image_url",
                                 "image_url": {
@@ -113,6 +113,7 @@ def analyze_recipe():
            
             # Parse and validate the response
             try:
+                logger.info(f"Raw GPT response: {response.choices[0].message.content}")
                 recipe_data = json.loads(response.choices[0].message.content)
                 is_valid, error_message = validate_recipe_data(recipe_data)
                 if not is_valid:
@@ -120,6 +121,7 @@ def analyze_recipe():
                     return jsonify({'error': f'Invalid recipe data: {error_message}'}), 500
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse GPT response as JSON: {str(e)}")
+                logger.error(f"Raw response content: {response.choices[0].message.content}")
                 return jsonify({'error': 'Failed to parse recipe data'}), 500
 
         except AuthenticationError as e:
