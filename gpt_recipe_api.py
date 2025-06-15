@@ -1,7 +1,6 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image
 import io
@@ -10,8 +9,6 @@ import json
 import logging
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
-
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Initialize Sentry
 sentry_sdk.init(
@@ -26,8 +23,12 @@ logging.basicConfig(level=logging.INFO)  # Change to INFO for production
 logger = logging.getLogger(__name__)
 
 # Load environment variables
-load_dotenv()
+if os.environ.get("ENVIRONMENT") != "production":
+    from dotenv import load_dotenv
+    load_dotenv()
 app = Flask(__name__)
+
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 CORS(app, resources={
     r"/*": {
@@ -91,4 +92,5 @@ def analyze_recipe():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     logger.info(f"Starting server on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    debug = os.environ.get("ENVIRONMENT") != "production"
+    app.run(host='0.0.0.0', port=port, debug=debug) 
