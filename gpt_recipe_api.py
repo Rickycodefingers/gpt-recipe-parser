@@ -33,7 +33,7 @@ CORS(app, resources={
     r"/*": {
         "origins": os.environ.get("CORS_ORIGINS", "*").split(","),
         "methods": ["GET", "POST", "OPTIONS"],
-        "allowed_headers": ["Content-Type", "Authorization"],
+        "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
 })
