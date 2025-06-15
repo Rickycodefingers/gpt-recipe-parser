@@ -25,15 +25,18 @@ function App() {
     const formData = new FormData();
     formData.append('image', image);
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/recipe', {
+      const response = await fetch('http://127.0.0.1:5001/api/recipe', {
         method: 'POST',
         body: formData,
       });
-      if (!response.ok) throw new Error('Failed to extract recipe.');
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to extract recipe');
+      }
       setRecipe(data);
     } catch (err) {
-      setError(err.message);
+      console.error('Error:', err);
+      setError(err.message || 'An error occurred while processing the image');
     } finally {
       setLoading(false);
     }
@@ -120,51 +123,17 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recipe.ingredients && recipe.ingredients.map((ingredient, idx) => {
-                    // Parse the ingredient string
-                    const parts = ingredient.match(/^([\d\s\/]+)?\s*(g|ml|oz|fl oz|cup|teaspoon|tablespoon|tbsp|tsp|lb|small|medium|large)?\s*(?:\(([^)]+)\))?\s*(.+?)(?:\(([^)]+)\))?$/i);
-                    
-                    let qty = '', measurement = '', name = '', notes = '';
-                    
-                    if (parts) {
-                      const imperial = parts[3]?.trim() || '';
-                      name = parts[4]?.trim() || '';
-                      notes = parts[5]?.trim() || '';
-
-                      if (useMetric) {
-                        qty = parts[1]?.trim() || '';
-                        measurement = parts[2]?.trim() || '';
-                      } else {
-                        // Extract imperial measurements
-                        const imperialMatch = imperial.match(/^([\d\s\/]+)\s*(oz|fl oz|cup|lb|tbsp|tsp)/i);
-                        if (imperialMatch) {
-                          qty = imperialMatch[1]?.trim() || '';
-                          measurement = imperialMatch[2]?.trim() || '';
-                        } else {
-                          qty = parts[1]?.trim() || '';
-                          measurement = parts[2]?.trim() || '';
-                        }
-                      }
-
-                      // Clean up the ingredient name by removing any remaining measurements
-                      name = name.replace(/^\([^)]+\)\s*/, '').trim();
-                    } else {
-                      // If parsing fails, just show the full ingredient
-                      name = ingredient;
-                    }
-
-                    return (
-                      <tr key={idx} style={{ 
-                        borderBottom: '1px solid #ddd',
-                        '&:hover': { backgroundColor: '#f9f9f9' }
-                      }}>
-                        <td style={{ padding: '12px' }}>{qty}</td>
-                        <td style={{ padding: '12px' }}>{measurement}</td>
-                        <td style={{ padding: '12px' }}>{name}</td>
-                        <td style={{ padding: '12px' }}>{notes}</td>
-                      </tr>
-                    );
-                  })}
+                  {recipe.ingredients && recipe.ingredients.map((ingredient, idx) => (
+                    <tr key={idx} style={{ 
+                      borderBottom: '1px solid #ddd',
+                      '&:hover': { backgroundColor: '#f9f9f9' }
+                    }}>
+                      <td style={{ padding: '12px' }}>{ingredient.amount || ''}</td>
+                      <td style={{ padding: '12px' }}>{ingredient.unit || ''}</td>
+                      <td style={{ padding: '12px' }}>{ingredient.item}</td>
+                      <td style={{ padding: '12px' }}>{ingredient.notes || ''}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

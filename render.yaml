@@ -9,3 +9,9 @@ services:
         sync: false 
       - key: PYTHON_VERSION
         value: 3.12.4
+      - key: ENVIRONMENT
+        value: production
+      - key: SENTRY_DSN
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://your-production-domain.com
