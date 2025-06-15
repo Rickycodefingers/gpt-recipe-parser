@@ -129,7 +129,7 @@ def analyze_recipe():
                         ]
                     }
                 ],
-                max_tokens=100000,
+                max_tokens=10000,
                 timeout=60
             )
             logger.info("Received response from OpenAI API")
