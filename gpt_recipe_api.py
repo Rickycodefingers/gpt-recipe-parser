@@ -35,7 +35,8 @@ CORS(app, resources={
     r"/api/*": {
         "origins": [
             "http://localhost:3000",  # Local development
-            "https://your-production-domain.com"  # Replace with your actual domain
+            "https://gpt-recipe-parser.vercel.app",  # Vercel frontend
+            "https://recipe-ui.vercel.app"  # Alternative Vercel domain
         ],
         "methods": ["POST", "OPTIONS"],
         "allow_headers": ["Content-Type"]
