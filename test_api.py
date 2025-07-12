@@ -11,7 +11,7 @@ def test_api_with_image(image_path):
             
         # Make the request
         response = requests.post(
-            'https://gpt-recipe-parser.onrender.com/api/recipe',
+            'https://invoice-api.onrender.com/api/invoice',
             json={
                 'image': f'data:image/jpeg;base64,{base64_image}'
             },
@@ -20,8 +20,8 @@ def test_api_with_image(image_path):
         
         print(f"Status Code: {response.status_code}")
         if response.status_code == 200:
-            print("Recipe extracted successfully!")
-            print("Recipe data:", response.json())
+            print("Invoice extracted successfully!")
+            print("Invoice data:", response.json())
         else:
             print("Error:", response.text)
             
@@ -29,7 +29,7 @@ def test_api_with_image(image_path):
         print(f"Error: {str(e)}")
 
 # Test with an image
-image_path = 'test_recipe.jpg'  # Replace with your image path
+image_path = 'test.JPG'  # Replace with your image path
 if os.path.exists(image_path):
     test_api_with_image(image_path)
 else:

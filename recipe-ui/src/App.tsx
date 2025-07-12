@@ -12,24 +12,23 @@ import {
   TableRow,
   Box,
   CircularProgress,
-  Alert
+  Alert,
+  Chip
 } from '@mui/material';
-import { Recipe } from './types';
+import { Invoice } from './types';
 import './App.css';
 
 function App() {
   const [image, setImage] = useState<File | null>(null);
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(0);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImage(e.target.files[0]);
-      setRecipe(null);
+      setInvoice(null);
       setError('');
-      setStep(0);
     }
   };
 
@@ -37,8 +36,7 @@ function App() {
     if (!image) return;
     setLoading(true);
     setError('');
-    setRecipe(null);
-    setStep(0);
+    setInvoice(null);
 
     try {
       const reader = new FileReader();
@@ -46,7 +44,7 @@ function App() {
       reader.onloadend = async () => {
         const base64data = reader.result as string;
         
-        const response = await fetch('https://gpt-recipe-parser.onrender.com/api/recipe', {
+        const response = await fetch('https://invoice-api.onrender.com/api/invoice', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -58,9 +56,9 @@ function App() {
 
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to extract recipe');
+          throw new Error(data.error || 'Failed to extract invoice');
         }
-        setRecipe(data);
+        setInvoice(data);
         setLoading(false);
       };
     } catch (err) {
@@ -70,14 +68,20 @@ function App() {
     }
   };
 
-  const nextStep = () => setStep((s) => s + 1);
-  const prevStep = () => setStep((s) => Math.max(0, s - 1));
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'normal': return 'success';
+      case 'credited': return 'warning';
+      case 'returned': return 'error';
+      default: return 'default';
+    }
+  };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ textAlign: 'center', mb: 4 }}>
         <Typography variant="h3" component="h1" gutterBottom>
-          Recipe Image to Table
+          Invoice Scanner
         </Typography>
         
         <Box sx={{ mb: 3 }}>
@@ -113,62 +117,66 @@ function App() {
           </Alert>
         )}
 
-        {recipe && (
+        {invoice && (
           <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
-            <Typography variant="h4" component="h2" gutterBottom>
-              {recipe.title}
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h4" component="h2">
+                Invoice #{invoice.invoice_id}
+              </Typography>
+              <Typography variant="h5" color="primary">
+                Total: ${invoice.totalAmount.toFixed(2)}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 4, mb: 3 }}>
+              <Typography variant="body1">
+                <strong>Vendor:</strong> {invoice.vendor}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Date:</strong> {invoice.date}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Confirmed:</strong> {invoice.confirmedAt}
+              </Typography>
+            </Box>
             
             <Typography variant="h5" component="h3" gutterBottom sx={{ mt: 3 }}>
-              Ingredients
+              Items
             </Typography>
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>QTY</TableCell>
-                    <TableCell>Ingredient</TableCell>
-                    <TableCell>Notes</TableCell>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Quantity</TableCell>
+                    <TableCell>Unit</TableCell>
+                    <TableCell>Price</TableCell>
+                    <TableCell>Total</TableCell>
+                    <TableCell>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {recipe.ingredients.map((ingredient, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{ingredient.amount}</TableCell>
-                      <TableCell>{ingredient.item}</TableCell>
-                      <TableCell>{ingredient.notes || '-'}</TableCell>
+                  {invoice.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.id}</TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{item.unit}</TableCell>
+                      <TableCell>${item.price.toFixed(2)}</TableCell>
+                      <TableCell>${(item.quantity * item.price).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={item.status} 
+                          color={getStatusColor(item.status) as any}
+                          size="small"
+                        />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </TableContainer>
-
-            <Typography variant="h5" component="h3" gutterBottom sx={{ mt: 4 }}>
-              Instructions
-            </Typography>
-            {recipe.instructions.length > 0 && (
-              <Paper variant="outlined" sx={{ p: 3, bgcolor: 'grey.50' }}>
-                <Typography variant="body1" paragraph>
-                  <strong>Step {step + 1}:</strong> {recipe.instructions[step]}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button
-                    variant="contained"
-                    onClick={prevStep}
-                    disabled={step === 0}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="contained"
-                    onClick={nextStep}
-                    disabled={step === recipe.instructions.length - 1}
-                  >
-                    Next
-                  </Button>
-                </Box>
-              </Paper>
-            )}
           </Paper>
         )}
       </Box>

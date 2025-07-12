@@ -38,7 +38,7 @@ client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 # Configure CORS
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://gpt-recipe-parser.vercel.app", "http://localhost:3000"],
+        "origins": ["https://chef-invoice-vision.vercel.app", "http://localhost:8080"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True,
@@ -49,23 +49,29 @@ CORS(app, resources={
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://gpt-recipe-parser.vercel.app')
+    response.headers.add('Access-Control-Allow-Origin', 'https://chef-invoice-vision.vercel.app')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     return response
 
-def validate_recipe_data(data):
-    """Validate the structure of the recipe data."""
-    required_fields = ['title', 'ingredients', 'instructions']
+def validate_invoice_data(data):
+    """Validate the structure of the invoice data."""
+    required_fields = ['invoice_id', 'vendor', 'date', 'totalAmount', 'confirmedAt', 'items']
     if not all(field in data for field in required_fields):
-        return False, "Missing required fields in recipe data"
+        return False, "Missing required fields in invoice data"
     
-    if not isinstance(data['ingredients'], list):
-        return False, "Ingredients must be a list"
+    if not isinstance(data['items'], list):
+        return False, "Items must be a list"
     
-    if not isinstance(data['instructions'], list):
-        return False, "Instructions must be a list"
+    # Validate each item in the items list
+    for item in data['items']:
+        item_fields = ['id', 'name', 'quantity', 'unit', 'price', 'status']
+        if not all(field in item for field in item_fields):
+            return False, f"Missing required fields in item: {item_fields}"
+        
+        if item['status'] not in ['normal', 'credited', 'returned']:
+            return False, f"Invalid status in item: {item['status']}"
     
     return True, None
 
@@ -78,7 +84,7 @@ def handle_error(error):
         return jsonify({'error': f"Rate Limit Error: {error.message}"}), 429
     elif isinstance(error, AuthenticationError):
         logger.error(f"Authentication Error: {error.message}")
-        return jsonify({'error': f"Authentication Error: {error.message}"}), 401
+        return jsonify({'error': 'Authentication Error: {error.message}'}), 401
     elif isinstance(error, APIStatusError):
         logger.error(f"API Status Error: {error.code} - {error.message}")
         return jsonify({'error': f"API Status Error: {error.code} - {error.message}"}), error.code
@@ -86,12 +92,29 @@ def handle_error(error):
         logger.error(f"Unexpected error: {str(error)}")
         return jsonify({'error': 'An unexpected error occurred'}), 500
 
+# Register error handlers
+@app.errorhandler(APIError)
+def handle_api_error(error):
+    return handle_error(error)
+
+@app.errorhandler(RateLimitError)
+def handle_rate_limit_error(error):
+    return handle_error(error)
+
+@app.errorhandler(AuthenticationError)
+def handle_auth_error(error):
+    return handle_error(error)
+
+@app.errorhandler(APIStatusError)
+def handle_status_error(error):
+    return handle_error(error)
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'environment': os.environ.get('ENVIRONMENT', 'development')})
 
-@app.route('/api/recipe', methods=['POST', 'OPTIONS'])
-def analyze_recipe():
+@app.route('/api/invoice', methods=['POST', 'OPTIONS'])
+def analyze_invoice():
     if request.method == 'OPTIONS':
         return '', 200
         
@@ -109,7 +132,7 @@ def analyze_recipe():
             logger.error(f"Error processing image: {str(e)}")
             return jsonify({'error': 'Invalid image data'}), 400
 
-        # Convert image to text using GPT-4o
+        # Convert image to text using GPT-4o-mini
         try:
             logger.info("Sending request to OpenAI API...")
             response = client.chat.completions.create(
@@ -119,7 +142,7 @@ def analyze_recipe():
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extract the recipe from this image and return it as a valid JSON object. Follow this exact structure: {\"title\": \"Recipe Title\", \"ingredients\": [{\"item\": \"ingredient name\", \"amount\": \"amount with unit\", \"notes\": \"any additional notes\"}], \"instructions\": [\"step 1\", \"step 2\", ...]}. Do not include any text before or after the JSON object. Each instruction should be a complete sentence. Each ingredient should have an item, amount, and notes field. The notes field can be empty if there are no additional notes. Format numbers and measurements consistently (e.g., '1 cup', '2 tablespoons', '1/2 teaspoon')."},
+                            {"type": "text", "text": "Extract the invoice data from this image and return it as a valid JSON object. Follow this exact structure: {  invoice_id: number; vendor: string; date: string; totalAmount: number; confirmedAt: string; items: Array<{ id: number; name: string; quantity: number; unit: string; price: number; status: 'normal' | 'credited' | 'returned';}. Do not include any text before or after the JSON object."},
                             {
                                 "type": "image_url",
                                 "image_url": {
@@ -129,7 +152,7 @@ def analyze_recipe():
                         ]
                     }
                 ],
-                max_tokens=10000,
+                max_tokens=2000,
                 timeout=60
             )
             logger.info("Received response from OpenAI API")
@@ -153,15 +176,15 @@ def analyze_recipe():
                     return jsonify({'error': 'Empty content in API response'}), 500
 
                 logger.info(f"Raw GPT response: {response.choices[0].message.content}")
-                recipe_data = json.loads(response.choices[0].message.content)
-                is_valid, error_message = validate_recipe_data(recipe_data)
+                invoice_data = json.loads(response.choices[0].message.content)
+                is_valid, error_message = validate_invoice_data(invoice_data)
                 if not is_valid:
-                    logger.error(f"Invalid recipe data structure: {error_message}")
-                    return jsonify({'error': f'Invalid recipe data: {error_message}'}), 500
+                    logger.error(f"Invalid invoice data structure: {error_message}")
+                    return jsonify({'error': f'Invalid invoice data: {error_message}'}), 500
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse GPT response as JSON: {str(e)}")
                 logger.error(f"Raw response content: {response.choices[0].message.content}")
-                return jsonify({'error': 'Failed to parse recipe data'}), 500
+                return jsonify({'error': 'Failed to parse invoice data'}), 500
 
         except AuthenticationError as e:
             logger.error(f"OpenAI API authentication error: {str(e)}")
@@ -177,9 +200,9 @@ def analyze_recipe():
             return jsonify({'error': 'Error communicating with OpenAI API'}), 500
         except Exception as e:
             logger.error(f"Unexpected error in GPT API call: {str(e)}")
-            return jsonify({'error': 'An unexpected error occurred while processing the recipe'}), 500
+            return jsonify({'error': 'An unexpected error occurred while processing the invoice'}), 500
 
-        return jsonify(recipe_data)
+        return jsonify(invoice_data)
 
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")

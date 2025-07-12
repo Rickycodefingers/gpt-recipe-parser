@@ -1,11 +1,17 @@
-export interface Ingredient {
-  item: string;
-  amount: string;
-  notes?: string;
+export interface InvoiceItem {
+  id: number;
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  status: 'normal' | 'credited' | 'returned';
 }
 
-export interface Recipe {
-  title: string;
-  ingredients: Ingredient[];
-  instructions: string[];
+export interface Invoice {
+  invoice_id: number;
+  vendor: string;
+  date: string;
+  totalAmount: number;
+  confirmedAt: string;
+  items: InvoiceItem[];
 } 
