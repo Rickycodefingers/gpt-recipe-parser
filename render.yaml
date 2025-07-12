@@ -3,7 +3,7 @@ services:
     name: invoice-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn Invoice_Scanner_API:app
+    startCommand: gunicorn invoice_scanner_api:app
     envVars:
       - key: OPENAI_API_KEY
         sync: false 
