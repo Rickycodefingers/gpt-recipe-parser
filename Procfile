@@ -1,0 +1,1 @@
+web: gunicorn invoice_scanner_api:app 
