@@ -44,7 +44,7 @@ function App() {
       reader.onloadend = async () => {
         const base64data = reader.result as string;
         
-        const response = await fetch('https://invoice-api.onrender.com/api/invoice', {
+        const response = await fetch('https://gpt-invoice-parser-1.onrender.com/api/invoice', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

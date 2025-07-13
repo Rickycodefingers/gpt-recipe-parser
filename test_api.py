@@ -9,9 +9,9 @@ def test_api_with_image(image_path):
         with open(image_path, 'rb') as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
             
-        # Make the request to local server
+        # Make the request to production server
         response = requests.post(
-            'http://localhost:10000/api/invoice',
+            'https://gpt-invoice-parser-1.onrender.com/api/invoice',
             json={
                 'image': f'data:image/jpeg;base64,{base64_image}'
             },
