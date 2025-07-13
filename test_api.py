@@ -9,9 +9,9 @@ def test_api_with_image(image_path):
         with open(image_path, 'rb') as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
             
-        # Make the request
+        # Make the request to local server
         response = requests.post(
-            'https://invoice-api.onrender.com/api/invoice',
+            'http://localhost:10000/api/invoice',
             json={
                 'image': f'data:image/jpeg;base64,{base64_image}'
             },
