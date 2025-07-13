@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: invoice-api
+    name: chef-invoice-scanner-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn invoice_scanner_api:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2
     envVars:
       - key: OPENAI_API_KEY
         sync: false 
