@@ -28,12 +28,15 @@ if os.environ.get("ENVIRONMENT") != "production":
     load_dotenv()
 
 # At the top of the file, after loading environment variables
-if not os.getenv('OPENAI_API_KEY'):
-    raise ValueError("OPENAI_API_KEY environment variable is not set")
-
 app = Flask(__name__)
 
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Initialize OpenAI client only if API key is available
+api_key = os.getenv('OPENAI_API_KEY')
+if api_key:
+    client = OpenAI(api_key=api_key)
+else:
+    client = None
+    logger.warning("OPENAI_API_KEY not set - API calls will fail")
 
 # Configure CORS
 CORS(app, resources={
@@ -134,6 +137,9 @@ def analyze_invoice():
 
         # Convert image to text using GPT-4o-mini
         try:
+            if not client:
+                return jsonify({'error': 'OpenAI API key not configured'}), 500
+                
             logger.info("Sending request to OpenAI API...")
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
